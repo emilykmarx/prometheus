@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/prometheus/tsdb/index"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -1472,6 +1473,41 @@ func (db *DB) compactHead(head *RangeHead) error {
 	if err = db.head.truncateMemory(head.BlockMaxTime()); err != nil {
 		return fmt.Errorf("head memory truncate: %w", err)
 	}
+
+	db.head.RebuildSymbolTable(db.logger)
+
+	return nil
+}
+
+func (db *DB) CompactStaleHead() error {
+	// TODO: compact the OOO data as well!!
+
+	db.cmtx.Lock()
+	defer db.cmtx.Unlock()
+
+	staleSeriesRefs := db.head.SortedStaleSeriesRefs(context.Background())
+
+	mint, maxt := db.head.MinTime(), db.head.MaxTime()
+	for ; mint < maxt; mint = mint + db.head.chunkRange.Load() {
+		staleHead := NewStaleHead(db.Head(), mint, mint+db.head.chunkRange.Load(), staleSeriesRefs)
+
+		uids, err := db.compactor.Write(db.dir, staleHead, staleHead.MinTime(), staleHead.BlockMaxTime(), nil)
+		if err != nil {
+			return fmt.Errorf("persist stale head: %w", err)
+		}
+
+		if err := db.reloadBlocks(); err != nil {
+			multiErr := tsdb_errors.NewMulti(fmt.Errorf("reloadBlocks blocks: %w", err))
+			for _, uid := range uids {
+				if errRemoveAll := os.RemoveAll(filepath.Join(db.dir, uid.String())); errRemoveAll != nil {
+					multiErr.Add(fmt.Errorf("delete persisted stale head block after failed db reloadBlocks:%s: %w", uid, errRemoveAll))
+				}
+			}
+			return multiErr.Err()
+		}
+	}
+
+	db.head.truncateStaleSeries(index.NewListPostings(staleSeriesRefs), maxt)
 
 	db.head.RebuildSymbolTable(db.logger)
 
