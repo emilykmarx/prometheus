@@ -1,22 +1,15 @@
-ARG ARCH="amd64"
-ARG OS="linux"
-FROM quay.io/prometheus/busybox-${OS}-${ARCH}:latest
-LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
-LABEL org.opencontainers.image.source="https://github.com/prometheus/prometheus"
+FROM ubuntu:latest
+# Expects prometheus to have already been built (with `go build -gcflags="all=-N -l" ./cmd/prometheus/`)
 
-ARG ARCH="amd64"
-ARG OS="linux"
-COPY .build/${OS}-${ARCH}/prometheus        /bin/prometheus
-COPY .build/${OS}-${ARCH}/promtool          /bin/promtool
+# Copy executables and whatnot (may eventually want promtool)
+COPY prometheus        /bin/prometheus
 COPY documentation/examples/prometheus.yml  /etc/prometheus/prometheus.yml
 COPY LICENSE                                /LICENSE
 COPY NOTICE                                 /NOTICE
 COPY npm_licenses.tar.bz2                   /npm_licenses.tar.bz2
 
 WORKDIR /prometheus
-RUN chown -R nobody:nobody /etc/prometheus /prometheus
 
-USER       nobody
 EXPOSE     9090
 VOLUME     [ "/prometheus" ]
 ENTRYPOINT [ "/bin/prometheus" ]
