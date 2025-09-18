@@ -7,7 +7,7 @@ FROM ubuntu:latest
 LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
 LABEL org.opencontainers.image.source="https://github.com/prometheus/prometheus"
 
-RUN apt-get update && apt-get install -y build-essential git wget
+RUN apt-get update && apt-get install -y build-essential git wget vim
 
 # Install go
 ENV GO_VERSION=1.22.7
@@ -33,12 +33,13 @@ ENV PATH=$PATH:/home/ubuntu/go/bin
 # dlv cannot create /home/ubuntu/.config due to `read-only file system` - neither can ubuntu, despite stat saying ubuntu has rwx
 WORKDIR /home/ubuntu/prometheus
 
-# Copy stuff for web UI
-COPY web/ui/static web/ui/static
-# Copy locally built executable
-COPY prometheus .
+# Copy whole Prometheus source, so dlv can do things like list
+# (Will also copy the executable, and stuff in web/ui/static)
+COPY . .
 
-COPY documentation/examples/prometheus.yml  /etc/prometheus/prometheus.yml
+# Copy the config file created by operator (for use in `docker run`)
+COPY kps_prom_config.yaml /etc/prometheus/prometheus.yml
+
 COPY LICENSE                                /LICENSE
 COPY NOTICE                                 /NOTICE
 COPY npm_licenses.tar.bz2                   /npm_licenses.tar.bz2
