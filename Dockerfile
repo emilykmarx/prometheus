@@ -38,7 +38,7 @@ WORKDIR /home/ubuntu/prometheus
 COPY . .
 
 # Copy the config file created by operator (for use in `docker run`)
-COPY kps_prom_config.yaml /etc/prometheus/prometheus.yml
+COPY kube-prometheus-stack/kps_prom_config.yaml /etc/prometheus/prometheus.yml
 
 COPY LICENSE                                /LICENSE
 COPY NOTICE                                 /NOTICE
