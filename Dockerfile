@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.source="https://github.com/prometheus/prometheus"
 
 RUN apt-get update && apt-get install -y build-essential git wget vim
 
-# Install go
+# Install go (this is the version it builds with - see go.mod)
 ENV GO_VERSION=1.22.7
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
    rm -rf /usr/local/go && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
@@ -47,6 +47,7 @@ COPY npm_licenses.tar.bz2                   /npm_licenses.tar.bz2
 # Back to root so can create data dir when run with `docker run` (doesn't matter when run with operator I think)
 USER root
 EXPOSE     9090
-VOLUME     [ "/prometheus" ]
+# Allows editing delve source (operator makes the whole file system read-only except these, I think)
+VOLUME     [ "/prometheus", "/home/ubuntu", "/tmp" ]
 ENTRYPOINT ["/bin/sh", "-c" , "sleep infinity"]
 # dlv exec ./prometheus -- --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
