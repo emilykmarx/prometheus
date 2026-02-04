@@ -1,13 +1,15 @@
 ARG ARCH="amd64"
 ARG OS="linux"
 FROM ubuntu:latest
+# Expects to be run from parent directory of dlv and prometheus
+
 # Expects prometheus to have already been built
 # (with `go build -gcflags="all=-N -l" ./cmd/prometheus/`)
 # may also need `make assets` for web UI
 LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
 LABEL org.opencontainers.image.source="https://github.com/prometheus/prometheus"
 
-RUN apt-get update && apt-get install -y build-essential git wget vim
+RUN apt-get update && apt-get install -y build-essential git wget vim tcpdump
 
 # Install go (this is the version it builds with - see go.mod)
 ENV GO_VERSION=1.22.7
@@ -21,9 +23,11 @@ WORKDIR /home/ubuntu
 
 # Install dlv
 RUN git clone https://github.com/emilykmarx/go-set.git && \
-  git clone https://github.com/emilykmarx/graph.git && \
-  git clone https://github.com/emilykmarx/delve.git && \
-  cd delve;  go install github.com/go-delve/delve/cmd/dlv
+  git clone https://github.com/emilykmarx/graph.git
+
+# Copy dlv source
+COPY delve delve
+RUN cd delve; GOFLAGS=-buildvcs=false go install github.com/go-delve/delve/cmd/dlv
 
 # dlv is installed here
 ENV PATH=$PATH:/home/ubuntu/go/bin
@@ -31,18 +35,19 @@ ENV PATH=$PATH:/home/ubuntu/go/bin
 # This directory ends up with rwx perms for ubuntu user even after the operator's shenanigans
 # Notes that may matter later: `kubectl exec` works but gives `groups: cannot find name for group ID 2000`
 # dlv cannot create /home/ubuntu/.config due to `read-only file system` - neither can ubuntu, despite stat saying ubuntu has rwx
-WORKDIR /home/ubuntu/prometheus
 
 # Copy whole Prometheus source, so dlv can do things like list
 # (Will also copy the executable, and stuff in web/ui/static)
-COPY . .
+COPY prometheus prometheus
+
+WORKDIR /home/ubuntu/prometheus
 
 # Copy the config file created by operator (for use in `docker run`)
-COPY kube-prometheus-stack/kps_prom_config.yaml /etc/prometheus/prometheus.yml
+COPY prometheus/kube-prometheus-stack/kps_prom_config.yaml /etc/prometheus/prometheus.yml
 
-COPY LICENSE                                /LICENSE
-COPY NOTICE                                 /NOTICE
-COPY npm_licenses.tar.bz2                   /npm_licenses.tar.bz2
+COPY prometheus/LICENSE                                /LICENSE
+COPY prometheus/NOTICE                                 /NOTICE
+COPY prometheus/npm_licenses.tar.bz2                   /npm_licenses.tar.bz2
 
 # Back to root so can create data dir when run with `docker run` (doesn't matter when run with operator I think)
 USER root
@@ -51,3 +56,4 @@ EXPOSE     9090
 VOLUME     [ "/prometheus", "/home/ubuntu", "/tmp" ]
 ENTRYPOINT ["/bin/sh", "-c" , "sleep infinity"]
 # dlv exec ./prometheus -- --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+# config substitute-path /home/emily/projects/config_tracing/prometheus/ .
