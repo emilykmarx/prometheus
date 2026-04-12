@@ -2,6 +2,10 @@ module github.com/prometheus/prometheus
 
 go 1.22.7
 
+replace (
+k8s.io/client-go => ../k8s-client-go
+)
+
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.1
