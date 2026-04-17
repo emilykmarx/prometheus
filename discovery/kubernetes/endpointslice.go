@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/common/promslog"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/discovery/v1"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -48,6 +49,12 @@ type EndpointSlice struct {
 	serviceStore       cache.Store
 
 	queue *workqueue.Type
+}
+
+func (e *EndpointSlice) CTypeParams() []kubetesting.CTypeParams {
+	return []kubetesting.CTypeParams{
+		{"attach_metadata.node", strconv.FormatBool(e.withNodeMetadata)},
+	}
 }
 
 // NewEndpointSlice returns a new endpointslice discovery.
@@ -161,6 +168,9 @@ func NewEndpointSlice(l *slog.Logger, eps cache.SharedIndexInformer, svc, pod, n
 }
 
 func (e *EndpointSlice) enqueueNode(nodeName string) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	endpoints, err := e.endpointSliceInf.GetIndexer().ByIndex(nodeIndex, nodeName)
 	if err != nil {
 		e.logger.Error("Error getting endpoints for node", "node", nodeName, "err", err)
@@ -173,6 +183,9 @@ func (e *EndpointSlice) enqueueNode(nodeName string) {
 }
 
 func (e *EndpointSlice) enqueue(obj interface{}) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return
@@ -183,6 +196,9 @@ func (e *EndpointSlice) enqueue(obj interface{}) {
 
 // Run implements the Discoverer interface.
 func (e *EndpointSlice) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	defer e.queue.ShutDown()
 
 	cacheSyncs := []cache.InformerSynced{e.endpointSliceInf.HasSynced, e.serviceInf.HasSynced, e.podInf.HasSynced}
@@ -206,6 +222,9 @@ func (e *EndpointSlice) Run(ctx context.Context, ch chan<- []*targetgroup.Group)
 }
 
 func (e *EndpointSlice) process(ctx context.Context, ch chan<- []*targetgroup.Group) bool {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	keyObj, quit := e.queue.Get()
 	if quit {
 		return false
@@ -240,6 +259,9 @@ func (e *EndpointSlice) process(ctx context.Context, ch chan<- []*targetgroup.Gr
 }
 
 func (e *EndpointSlice) getEndpointSliceAdaptor(o interface{}) (endpointSliceAdaptor, error) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	switch endpointSlice := o.(type) {
 	case *v1.EndpointSlice:
 		return newEndpointSliceAdaptorFromV1(endpointSlice), nil
@@ -275,6 +297,9 @@ const (
 )
 
 func (e *EndpointSlice) buildEndpointSlice(eps endpointSliceAdaptor) *targetgroup.Group {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	tg := &targetgroup.Group{
 		Source: endpointSliceSource(eps),
 	}
@@ -464,6 +489,9 @@ func (e *EndpointSlice) buildEndpointSlice(eps endpointSliceAdaptor) *targetgrou
 }
 
 func (e *EndpointSlice) resolvePodRef(ref *apiv1.ObjectReference) *apiv1.Pod {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	if ref == nil || ref.Kind != "Pod" {
 		return nil
 	}
@@ -480,6 +508,9 @@ func (e *EndpointSlice) resolvePodRef(ref *apiv1.ObjectReference) *apiv1.Pod {
 }
 
 func (e *EndpointSlice) addServiceLabels(esa endpointSliceAdaptor, tg *targetgroup.Group) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	var (
 		found bool
 		name  string

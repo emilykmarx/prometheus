@@ -25,6 +25,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
 	apiv1 "k8s.io/api/core/v1"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -46,6 +47,12 @@ type Endpoints struct {
 	serviceStore   cache.Store
 
 	queue *workqueue.Type
+}
+
+func (e *Endpoints) CTypeParams() []kubetesting.CTypeParams {
+	return []kubetesting.CTypeParams{
+		{"attach_metadata.node", strconv.FormatBool(e.withNodeMetadata)},
+	}
 }
 
 // NewEndpoints returns a new endpoints discovery.
@@ -180,6 +187,9 @@ func NewEndpoints(l *slog.Logger, eps cache.SharedIndexInformer, svc, pod, node 
 }
 
 func (e *Endpoints) enqueueNode(nodeName string) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	endpoints, err := e.endpointsInf.GetIndexer().ByIndex(nodeIndex, nodeName)
 	if err != nil {
 		e.logger.Error("Error getting endpoints for node", "node", nodeName, "err", err)
@@ -192,6 +202,9 @@ func (e *Endpoints) enqueueNode(nodeName string) {
 }
 
 func (e *Endpoints) enqueuePod(podNamespacedName string) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	endpoints, err := e.endpointsInf.GetIndexer().ByIndex(podIndex, podNamespacedName)
 	if err != nil {
 		e.logger.Error("Error getting endpoints for pod", "pod", podNamespacedName, "err", err)
@@ -204,6 +217,9 @@ func (e *Endpoints) enqueuePod(podNamespacedName string) {
 }
 
 func (e *Endpoints) enqueue(obj interface{}) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return
@@ -214,6 +230,9 @@ func (e *Endpoints) enqueue(obj interface{}) {
 
 // Run implements the Discoverer interface.
 func (e *Endpoints) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	defer e.queue.ShutDown()
 
 	cacheSyncs := []cache.InformerSynced{e.endpointsInf.HasSynced, e.serviceInf.HasSynced, e.podInf.HasSynced}
@@ -238,6 +257,9 @@ func (e *Endpoints) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
 }
 
 func (e *Endpoints) process(ctx context.Context, ch chan<- []*targetgroup.Group) bool {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	keyObj, quit := e.queue.Get()
 	if quit {
 		return false
@@ -297,6 +319,9 @@ const (
 )
 
 func (e *Endpoints) buildEndpoints(eps *apiv1.Endpoints) *targetgroup.Group {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	tg := &targetgroup.Group{
 		Source: endpointsSource(eps),
 	}
@@ -451,6 +476,9 @@ func (e *Endpoints) buildEndpoints(eps *apiv1.Endpoints) *targetgroup.Group {
 }
 
 func (e *Endpoints) resolvePodRef(ref *apiv1.ObjectReference) *apiv1.Pod {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	if ref == nil || ref.Kind != "Pod" {
 		return nil
 	}
@@ -467,6 +495,9 @@ func (e *Endpoints) resolvePodRef(ref *apiv1.ObjectReference) *apiv1.Pod {
 }
 
 func (e *Endpoints) addServiceLabels(ns, name string, tg *targetgroup.Group) {
+	kubetesting.LogCTypesMethodEntry(e)
+	defer kubetesting.LogCTypesMethodExit()
+
 	obj, exists, err := e.serviceStore.GetByKey(namespacedName(ns, name))
 	if err != nil {
 		e.logger.Error("retrieving service failed", "err", err)
