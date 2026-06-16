@@ -1,10 +1,8 @@
 module github.com/prometheus/prometheus
 
-go 1.22.7
+go 1.26.0
 
-replace (
-k8s.io/client-go => ../k8s-client-go
-)
+replace k8s.io/client-go => ../k8s-client-go
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
@@ -83,7 +81,7 @@ require (
 	go.uber.org/multierr v1.11.0
 	golang.org/x/oauth2 v0.25.0
 	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.29.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/text v0.21.0
 	golang.org/x/tools v0.29.0
 	google.golang.org/api v0.218.0
@@ -118,6 +116,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
+	github.com/emilykmarx/conftamer v0.0.0-20260510063433-07a76c318fb6 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
