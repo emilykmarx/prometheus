@@ -1,9 +1,10 @@
 module github.com/prometheus/prometheus
 
-go 1.22.7
+go 1.26.0
 
 replace (
-k8s.io/client-go => ../k8s-client-go
+	github.com/emilykmarx/conftamer => ../conftamer
+	k8s.io/client-go => ../k8s-client-go
 )
 
 require (
@@ -22,6 +23,7 @@ require (
 	github.com/digitalocean/godo v1.132.0
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/edsrzf/mmap-go v1.2.0
+	github.com/emilykmarx/conftamer v0.0.0-20260421220725-9165617708da
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/facette/natsort v0.0.0-20181210072756-2cd4dd1e2dcb
@@ -30,7 +32,7 @@ require (
 	github.com/go-zookeeper/zk v1.0.4
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad
 	github.com/google/uuid v1.6.0
 	github.com/gophercloud/gophercloud/v2 v2.4.0
@@ -83,7 +85,7 @@ require (
 	go.uber.org/multierr v1.11.0
 	golang.org/x/oauth2 v0.25.0
 	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.29.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/text v0.21.0
 	golang.org/x/tools v0.29.0
 	google.golang.org/api v0.218.0

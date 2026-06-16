@@ -27,6 +27,7 @@ import (
 
 	"github.com/prometheus/prometheus/util/strutil"
 
+	"github.com/emilykmarx/conftamer/pkg/ctypes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
@@ -42,7 +43,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -117,12 +117,12 @@ type SDConfig struct {
 	AttachMetadata     AttachMetadataConfig    `yaml:"attach_metadata,omitempty"`
 }
 
-func (c *SDConfig) CTypeParams() []kubetesting.CTypeParams {
+func (c *SDConfig) CTypeParams() []ctypes.CTypeParam {
 	api_server := ""
 	if c.APIServer.URL != nil {
 		api_server = c.APIServer.String()
 	}
-	params := []kubetesting.CTypeParams{
+	params := []ctypes.CTypeParam{
 		{"api_server", api_server},
 		{"role", string(c.Role)},
 		{"kubeconfig_file", c.KubeConfig},
@@ -142,29 +142,29 @@ func (c *SDConfig) CTypeParams() []kubetesting.CTypeParams {
 
 // NewDiscovererMetrics implements discovery.Config.
 func (c *SDConfig) NewDiscovererMetrics(reg prometheus.Registerer, rmi discovery.RefreshMetricsInstantiator) discovery.DiscovererMetrics {
-	kubetesting.LogCTypesMethodEntry(c)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(c)
+	defer ctypes.LogCTypesMethodExit()
 	return newDiscovererMetrics(reg, rmi)
 }
 
 // Name returns the name of the Config.
 func (c *SDConfig) Name() string {
-	kubetesting.LogCTypesMethodEntry(c)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(c)
+	defer ctypes.LogCTypesMethodExit()
 	return "kubernetes"
 }
 
 // NewDiscoverer returns a Discoverer for the Config.
 func (c *SDConfig) NewDiscoverer(opts discovery.DiscovererOptions) (discovery.Discoverer, error) {
-	kubetesting.LogCTypesMethodEntry(c)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(c)
+	defer ctypes.LogCTypesMethodExit()
 	return New(opts.Logger, opts.Metrics, c)
 }
 
 // SetDirectory joins any relative file paths with dir.
 func (c *SDConfig) SetDirectory(dir string) {
-	kubetesting.LogCTypesMethodEntry(c)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(c)
+	defer ctypes.LogCTypesMethodExit()
 	c.HTTPClientConfig.SetDirectory(dir)
 	c.KubeConfig = config.JoinDir(dir, c.KubeConfig)
 }
@@ -178,27 +178,45 @@ type roleSelector struct {
 	ingress       resourceSelector
 }
 
-func (s *roleSelector) CTypeParams() []kubetesting.CTypeParams {
-	return []kubetesting.CTypeParams{
-		{"selectors.role", "node"},
-		{"selectors.label", s.node.label},
-		{"selectors.field", s.node.field},
-		{"selectors.role", "pod"},
-		{"selectors.label", s.pod.label},
-		{"selectors.field", s.pod.field},
-		{"selectors.role", "service"},
-		{"selectors.label", s.service.label},
-		{"selectors.field", s.service.field},
-		{"selectors.role", "endpoints"},
-		{"selectors.label", s.endpoints.label},
-		{"selectors.field", s.endpoints.field},
-		{"selectors.role", "endpointslice"},
-		{"selectors.label", s.endpointslice.label},
-		{"selectors.field", s.endpointslice.field},
-		{"selectors.role", "ingress"},
-		{"selectors.label", s.ingress.label},
-		{"selectors.field", s.ingress.field},
+// Skip empty labels/fields
+func (s *roleSelector) CTypeParams() []ctypes.CTypeParam {
+	params := []ctypes.CTypeParam{}
+	for _, role := range []Role{RoleEndpoint, RoleEndpointSlice, RoleIngress, RoleNode, RolePod, RoleService} {
+		label_selector := ""
+		field_selector := ""
+		label_param_key := "selectors.label[\"%s\"]"
+		field_param_key := "selectors.field[\"%s\"]"
+		switch role {
+		case RoleEndpoint:
+			label_selector = s.endpoints.label
+			field_selector = s.endpoints.field
+		case RoleEndpointSlice:
+			label_selector = s.endpointslice.label
+			field_selector = s.endpointslice.field
+		case RoleIngress:
+			label_selector = s.ingress.label
+			field_selector = s.ingress.field
+		case RoleNode:
+			label_selector = s.node.label
+			field_selector = s.node.field
+		case RolePod:
+			label_selector = s.pod.label
+			field_selector = s.pod.field
+		case RoleService:
+			label_selector = s.service.label
+			field_selector = s.service.field
+
+		}
+
+		if label_selector != "" {
+			params = append(params, ctypes.CTypeParam{Key: fmt.Sprintf(label_param_key, role.String()), Value: label_selector})
+		}
+		if field_selector != "" {
+			params = append(params, ctypes.CTypeParam{Key: fmt.Sprintf(field_param_key, role.String()), Value: field_selector})
+		}
 	}
+
+	return params
 }
 
 type SelectorConfig struct {
@@ -207,8 +225,8 @@ type SelectorConfig struct {
 	Field string `yaml:"field,omitempty"`
 }
 
-func (s *SelectorConfig) CTypeParams() []kubetesting.CTypeParams {
-	return []kubetesting.CTypeParams{
+func (s *SelectorConfig) CTypeParams() []ctypes.CTypeParam {
+	return []ctypes.CTypeParam{
 		{"selectors.role", string(s.Role)},
 		{"selectors.label", s.Label},
 		{"selectors.field", s.Field},
@@ -226,16 +244,16 @@ type AttachMetadataConfig struct {
 	Node bool `yaml:"node"`
 }
 
-func (a *AttachMetadataConfig) CTypeParams() []kubetesting.CTypeParams {
-	return []kubetesting.CTypeParams{
+func (a *AttachMetadataConfig) CTypeParams() []ctypes.CTypeParam {
+	return []ctypes.CTypeParam{
 		{"attach_metadata.node", strconv.FormatBool(a.Node)},
 	}
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *SDConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	kubetesting.LogCTypesMethodEntry(c)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(c)
+	defer ctypes.LogCTypesMethodExit()
 	*c = DefaultSDConfig
 	type plain SDConfig
 	err := unmarshal((*plain)(c))
@@ -319,20 +337,20 @@ type NamespaceDiscovery struct {
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *NamespaceDiscovery) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	kubetesting.LogCTypesMethodEntry(c)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(c)
+	defer ctypes.LogCTypesMethodExit()
 
 	*c = NamespaceDiscovery{}
 	type plain NamespaceDiscovery
 	return unmarshal((*plain)(c))
 }
 
-func (c *NamespaceDiscovery) CTypeParams() []kubetesting.CTypeParams {
-	params := []kubetesting.CTypeParams{
+func (c *NamespaceDiscovery) CTypeParams() []ctypes.CTypeParam {
+	params := []ctypes.CTypeParam{
 		{"namespace.own_namespace", strconv.FormatBool(c.IncludeOwnNamespace)},
 	}
 	for _, name := range c.Names {
-		params = append(params, kubetesting.CTypeParams{"namespace.names", name})
+		params = append(params, ctypes.CTypeParam{"namespace.names", name})
 	}
 	return params
 }
@@ -352,8 +370,8 @@ type Discovery struct {
 	metrics            *kubernetesMetrics
 }
 
-func (d *Discovery) CTypeParams() []kubetesting.CTypeParams {
-	params := []kubetesting.CTypeParams{
+func (d *Discovery) CTypeParams() []ctypes.CTypeParam {
+	params := []ctypes.CTypeParam{
 		{"role", d.role.String()},
 
 		// ownNamespace is set if own_namespace is true, to own namespace's value -
@@ -366,9 +384,13 @@ func (d *Discovery) CTypeParams() []kubetesting.CTypeParams {
 
 	// Implementations of discovery.Discoverer
 	for _, discoverer := range d.discoverers {
-		ctype, ok := discoverer.(kubetesting.CType)
+		ctype, ok := discoverer.(ctypes.CType)
 		if ok {
-			params = append(params, ctype.CTypeParams()...)
+			for _, param := range ctype.CTypeParams() {
+				// Make it clear this is via a discoverer (can be helpful for testing but ultimately don't want since corresponds to same param key)
+				//param.Key = fmt.Sprintf("discoverer[%v].%v", i, param.Key)
+				params = append(params, param)
+			}
 		}
 	}
 
@@ -380,8 +402,8 @@ func (d *Discovery) CTypeParams() []kubetesting.CTypeParams {
 }
 
 func (d *Discovery) getNamespaces() []string {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	namespaces := d.namespaceDiscovery.Names
 	includeOwnNamespace := d.namespaceDiscovery.IncludeOwnNamespace
@@ -504,8 +526,8 @@ const resyncDisabled = 0
 
 // Run implements the discoverer interface.
 func (d *Discovery) Run(ctx context.Context, ch chan<- []*targetgroup.Group) {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	d.Lock()
 
@@ -767,8 +789,8 @@ func retryOnError(ctx context.Context, interval time.Duration, f func() error) (
 }
 
 func (d *Discovery) newNodeInformer(ctx context.Context) cache.SharedInformer {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	nlw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -786,8 +808,8 @@ func (d *Discovery) newNodeInformer(ctx context.Context) cache.SharedInformer {
 }
 
 func (d *Discovery) newPodsByNodeInformer(plw *cache.ListWatch) cache.SharedIndexInformer {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	indexers := make(map[string]cache.IndexFunc)
 	if d.attachMetadata.Node {
@@ -804,8 +826,8 @@ func (d *Discovery) newPodsByNodeInformer(plw *cache.ListWatch) cache.SharedInde
 }
 
 func (d *Discovery) newEndpointsByNodeInformer(plw *cache.ListWatch) cache.SharedIndexInformer {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	indexers := make(map[string]cache.IndexFunc)
 	indexers[podIndex] = func(obj interface{}) ([]string, error) {
@@ -854,8 +876,8 @@ func (d *Discovery) newEndpointsByNodeInformer(plw *cache.ListWatch) cache.Share
 }
 
 func (d *Discovery) newEndpointSlicesByNodeInformer(plw *cache.ListWatch, object runtime.Object) cache.SharedIndexInformer {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	indexers := make(map[string]cache.IndexFunc)
 	if !d.attachMetadata.Node {
@@ -889,16 +911,16 @@ func (d *Discovery) newEndpointSlicesByNodeInformer(plw *cache.ListWatch, object
 }
 
 func (d *Discovery) informerWatchErrorHandler(r *cache.Reflector, err error) {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	d.metrics.failuresCount.Inc()
 	cache.DefaultWatchErrorHandler(r, err)
 }
 
 func (d *Discovery) mustNewSharedInformer(lw cache.ListerWatcher, exampleObject runtime.Object, defaultEventHandlerResyncPeriod time.Duration) cache.SharedInformer {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	informer := cache.NewSharedInformer(lw, exampleObject, defaultEventHandlerResyncPeriod)
 	// Invoking SetWatchErrorHandler should fail only if the informer has been started beforehand.
@@ -910,8 +932,8 @@ func (d *Discovery) mustNewSharedInformer(lw cache.ListerWatcher, exampleObject 
 }
 
 func (d *Discovery) mustNewSharedIndexInformer(lw cache.ListerWatcher, exampleObject runtime.Object, defaultEventHandlerResyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	kubetesting.LogCTypesMethodEntry(d)
-	defer kubetesting.LogCTypesMethodExit()
+	ctypes.LogCTypesMethodEntry(d)
+	defer ctypes.LogCTypesMethodExit()
 
 	informer := cache.NewSharedIndexInformer(lw, exampleObject, defaultEventHandlerResyncPeriod, indexers)
 	// Invoking SetWatchErrorHandler should fail only if the informer has been started beforehand.

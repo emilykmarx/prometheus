@@ -22,12 +22,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/emilykmarx/conftamer/pkg/ctypes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -49,8 +49,8 @@ type Pod struct {
 	queue            *workqueue.Type
 }
 
-func (p *Pod) CTypeParams() []kubetesting.CTypeParams {
-	return []kubetesting.CTypeParams{
+func (p *Pod) CTypeParams() []ctypes.CTypeParam {
+	return []ctypes.CTypeParam{
 		{"attach_metadata.node", strconv.FormatBool(p.withNodeMetadata)},
 	}
 }
