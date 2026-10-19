@@ -12,19 +12,23 @@ ARG ARGMATCH_DEPTH=5
 # Absolute path (in the build stage) of a file of match strings, one per line.
 # Files under prometheus/ are at /src/.
 ARG ARGMATCH_MATCHFILE=
+# Absolute path (in the build stage) of a log of connection stacktraces; every
+# function in its stacks is checked too. Files under prometheus/ are at /src/.
+ARG ARGMATCH_STACKLOG=
 # File (inside the container) that Prometheus appends matches to; empty means stderr
 ARG ARGMATCH_OUT=
 # Copy in local modules
 COPY prom-common/ /prom-common/
 COPY prom-exporter-toolkit/ /prom-exporter-toolkit/
-# Build argmatch
-COPY dump_ancestors/argmatch/ /argmatch/
-RUN cd /argmatch && go build -o argmatch .
+# Build argmatch, keeping the stack log parser at the same relative path
+COPY golang.org-x-tools/gopls/conftamer/stacklog/ /golang.org-x-tools/gopls/conftamer/stacklog/
+COPY dump_ancestors/argmatch/ /dump_ancestors/argmatch/
+RUN cd /dump_ancestors/argmatch && go build -o argmatch .
 # Copy in local Prom source
 COPY prometheus/ /src/
 RUN cd /src && \
-    ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
-    GOFLAGS=-toolexec=/argmatch/argmatch \
+    ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
+    GOFLAGS=-toolexec=/dump_ancestors/argmatch/argmatch \
     make build PROMU_BINARIES=prometheus
 
 FROM quay.io/prometheus/prometheus:${VERSION}
