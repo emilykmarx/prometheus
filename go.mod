@@ -219,7 +219,3 @@ exclude (
 
 // Pin until https://github.com/fsnotify/fsnotify/issues/656 is resolved.
 replace github.com/fsnotify/fsnotify v1.8.0 => github.com/fsnotify/fsnotify v1.7.0
-
-replace github.com/prometheus/common v0.62.0 => ../prom-common
-
-replace github.com/prometheus/exporter-toolkit v0.13.2 => ../prom-exporter-toolkit

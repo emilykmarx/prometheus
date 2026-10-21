@@ -24,9 +24,6 @@ ARG ARGMATCH_EXACT=true
 ARG ARGMATCH_IGNORECLOSURES=true
 # File (inside the container) that Prometheus writes matches to, overwriting it; empty means stderr
 ARG ARGMATCH_OUT=
-# Copy in local modules
-COPY prom-common/ /prom-common/
-COPY prom-exporter-toolkit/ /prom-exporter-toolkit/
 # Build argmatch, keeping the stack log parser at the same relative path
 COPY golang.org-x-tools/gopls/conftamer/stacklog/ /golang.org-x-tools/gopls/conftamer/stacklog/
 COPY dump_ancestors/argmatch/ /dump_ancestors/argmatch/
