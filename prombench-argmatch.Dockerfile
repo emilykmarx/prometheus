@@ -17,7 +17,12 @@ ARG ARGMATCH_MATCHFILE=
 ARG ARGMATCH_STACKLOG=
 # Set to 1 (or true) to check only method receivers, not parameters
 ARG ARGMATCH_RECVONLY=
-# File (inside the container) that Prometheus appends matches to; empty means stderr
+# Set to false to also report values that contain a match string, not just
+# values equal to one
+ARG ARGMATCH_EXACT=true
+# Set to false to also check the variables captured by closures and method values
+ARG ARGMATCH_IGNORECLOSURES=true
+# File (inside the container) that Prometheus writes matches to, overwriting it; empty means stderr
 ARG ARGMATCH_OUT=
 # Copy in local modules
 COPY prom-common/ /prom-common/
@@ -29,7 +34,7 @@ RUN cd /dump_ancestors/argmatch && go build -o argmatch .
 # Copy in local Prom source
 COPY prometheus/ /src/
 RUN cd /src && \
-    ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_RECVONLY="${ARGMATCH_RECVONLY}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
+    ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_RECVONLY="${ARGMATCH_RECVONLY}" ARGMATCH_EXACT="${ARGMATCH_EXACT}" ARGMATCH_IGNORECLOSURES="${ARGMATCH_IGNORECLOSURES}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
     GOFLAGS=-toolexec=/dump_ancestors/argmatch/argmatch \
     make build PROMU_BINARIES=prometheus
 
