@@ -12,6 +12,9 @@ ARG ARGMATCH_DEPTH=5
 # Elements of each array, slice and map to load. What's loaded grows roughly as
 # MAXELEMS^DEPTH; 64 was tested up to ARGMATCH_DEPTH=10
 ARG ARGMATCH_MAXELEMS=64
+# Check only the first MAXCALLS calls of each function (0 = all); later calls
+# skip the check, so they don't slow the program down
+ARG ARGMATCH_MAXCALLS=3
 # Absolute path (in the build stage) of a file of match strings, one per line.
 # Files under prometheus/ are at /src/.
 ARG ARGMATCH_MATCHFILE=
@@ -34,7 +37,7 @@ RUN cd /dump_ancestors/argmatch && go build -o argmatch .
 # Copy in local Prom source
 COPY prometheus/ /src/
 RUN cd /src && \
-    ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_RECVONLY="${ARGMATCH_RECVONLY}" ARGMATCH_EXACT="${ARGMATCH_EXACT}" ARGMATCH_IGNORECLOSURES="${ARGMATCH_IGNORECLOSURES}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_MAXELEMS="${ARGMATCH_MAXELEMS}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
+    ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_RECVONLY="${ARGMATCH_RECVONLY}" ARGMATCH_EXACT="${ARGMATCH_EXACT}" ARGMATCH_IGNORECLOSURES="${ARGMATCH_IGNORECLOSURES}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_MAXELEMS="${ARGMATCH_MAXELEMS}" ARGMATCH_MAXCALLS="${ARGMATCH_MAXCALLS}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
     GOFLAGS=-toolexec=/dump_ancestors/argmatch/argmatch \
     make build PROMU_BINARIES=prometheus
 
