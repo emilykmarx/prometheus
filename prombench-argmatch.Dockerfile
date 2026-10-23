@@ -1,8 +1,24 @@
 # prombench.Dockerfile, with Prometheus built under argmatch
 # (../dump_ancestors/argmatch). Build from the parent directory:
 #   docker build -f prometheus/prombench-argmatch.Dockerfile --build-arg VERSION=v3.2.1 -t prometheus-argmatch:v3.2.1 .
+#
+# Go's build cache is kept between builds (see the cache mounts below), so a
+# rebuild only recompiles what changed. Only ARGMATCH_FUNC, ARGMATCH_STACKLOG
+# and ARGMATCH_RECVONLY decide which code is instrumented; changing one of
+# them recompiles every package. The other ARGMATCH_* args are run-time
+# settings: changing them only relinks Prometheus, and they can also be
+# overridden without rebuilding, with docker run -e ARGMATCH_DEPTH=20 etc.
+# (ARGMATCH_MATCHFILE is then a path inside the container.)
+#
+# The web UI is built in its own stage, from only web/ui and the Makefiles,
+# so it's rebuilt only when those change, not on every build.
 ARG BUILDER=prometheus-builder:conftamer
 ARG VERSION=v3.2.1
+
+FROM ${BUILDER} AS ui
+COPY prometheus/Makefile prometheus/Makefile.common /src/
+COPY prometheus/web/ui/ /src/web/ui/
+RUN cd /src && make assets
 
 FROM ${BUILDER} AS build
 ARG VERSION=v3.2.1
@@ -48,11 +64,15 @@ ARG ARGMATCH_OUT=
 COPY golang.org-x-tools/gopls/conftamer/stacklog/ /golang.org-x-tools/gopls/conftamer/stacklog/
 COPY dump_ancestors/argmatch/ /dump_ancestors/argmatch/
 RUN cd /dump_ancestors/argmatch && go build -o argmatch .
-# Copy in local Prom source
+# Copy in local Prom source, and the UI assets built above
 COPY prometheus/ /src/
-RUN cd /src && \
+COPY --from=ui /src/web/ui/static/ /ui-static/
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    cd /src && \
     ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_RECVONLY="${ARGMATCH_RECVONLY}" ARGMATCH_EXACT="${ARGMATCH_EXACT}" ARGMATCH_IGNORECLOSURES="${ARGMATCH_IGNORECLOSURES}" ARGMATCH_IGNORELIBS="${ARGMATCH_IGNORELIBS}" ARGMATCH_IGNORETYPES="${ARGMATCH_IGNORETYPES}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_MAXELEMS="${ARGMATCH_MAXELEMS}" ARGMATCH_MAXFIELDS="${ARGMATCH_MAXFIELDS}" ARGMATCH_MAXTIME="${ARGMATCH_MAXTIME}" ARGMATCH_MAXMEM="${ARGMATCH_MAXMEM}" ARGMATCH_MAXCALLS="${ARGMATCH_MAXCALLS}" ARGMATCH_OUT="${ARGMATCH_OUT}" \
     GOFLAGS=-toolexec=/dump_ancestors/argmatch/argmatch \
+    SKIP_UI_BUILD=1 PREBUILT_ASSETS_STATIC_DIR=/ui-static \
     make build PROMU_BINARIES=prometheus
 
 FROM quay.io/prometheus/prometheus:${VERSION}
