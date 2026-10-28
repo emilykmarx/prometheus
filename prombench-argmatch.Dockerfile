@@ -50,7 +50,8 @@ ARG ARGMATCH_RECVONLY=
 # Set to false to also report values that contain a match string, not just
 # values equal to one
 ARG ARGMATCH_EXACT=true
-# Set to false to also check the variables captured by closures and method values
+# Must be true: argmatch can't check the variables captured by closures and
+# method values (the delve version, tag delve-walker in dump_ancestors, could)
 ARG ARGMATCH_IGNORECLOSURES=true
 # Set to false to also load the fields of structs from the packages that
 # stacklog.IgnoreFn ignores (the standard library, gRPC, golang.org/x/net, ...)
