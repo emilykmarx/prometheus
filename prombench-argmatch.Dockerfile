@@ -66,6 +66,12 @@ ARG ARGMATCH_IGNORETYPES=
 ARG ARGMATCH_OUT=
 # Set to true to print each check's time and read counts to stderr
 ARG ARGMATCH_STATS=false
+# Patch Go's net/http (on top of the builder's own Go patch) and Prometheus's
+# prometheus/common/route to log HTTP messages and their routes; see
+# conftamer/contexttrack/README.md. Nothing is logged unless CONFTAMER_EVENTS
+# is set when Prometheus runs.
+COPY conftamer/contexttrack/go-inlibrary.patch conftamer/contexttrack/prometheus-common-route.patch /patches/
+RUN cd /usr/local/go && patch -p4 < /patches/go-inlibrary.patch
 # Build argmatch, keeping the stack log parser at the same relative path
 COPY golang.org-x-tools/gopls/conftamer/stacklog/ /golang.org-x-tools/gopls/conftamer/stacklog/
 COPY dump_ancestors/argmatch/ /dump_ancestors/argmatch/
@@ -76,6 +82,11 @@ COPY --from=ui /src/web/ui/static/ /ui-static/
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     cd /src && \
+    go mod download github.com/prometheus/common && \
+    common=$(go list -m -f '{{.Dir}}' github.com/prometheus/common) && \
+    cp -r "$common" /common-conftamer && chmod -R u+w /common-conftamer && \
+    (cd /common-conftamer && patch -p4 < /patches/prometheus-common-route.patch) && \
+    go mod edit -replace=github.com/prometheus/common=/common-conftamer && \
     ARGMATCH_FUNC="${ARGMATCH_FUNC}" ARGMATCH_MATCH="${ARGMATCH_MATCH}" ARGMATCH_MATCHFILE="${ARGMATCH_MATCHFILE}" ARGMATCH_STACKLOG="${ARGMATCH_STACKLOG}" ARGMATCH_RECVONLY="${ARGMATCH_RECVONLY}" ARGMATCH_EXACT="${ARGMATCH_EXACT}" ARGMATCH_IGNORECLOSURES="${ARGMATCH_IGNORECLOSURES}" ARGMATCH_IGNORELIBS="${ARGMATCH_IGNORELIBS}" ARGMATCH_IGNORETYPES="${ARGMATCH_IGNORETYPES}" ARGMATCH_DEPTH="${ARGMATCH_DEPTH}" ARGMATCH_MAXELEMS="${ARGMATCH_MAXELEMS}" ARGMATCH_MAXFIELDS="${ARGMATCH_MAXFIELDS}" ARGMATCH_MAXTIME="${ARGMATCH_MAXTIME}" ARGMATCH_MAXMEM="${ARGMATCH_MAXMEM}" ARGMATCH_MAXCALLS="${ARGMATCH_MAXCALLS}" ARGMATCH_CALLINTERVAL="${ARGMATCH_CALLINTERVAL}" ARGMATCH_OUT="${ARGMATCH_OUT}" ARGMATCH_STATS="${ARGMATCH_STATS}" \
     GOFLAGS=-toolexec=/dump_ancestors/argmatch/argmatch \
     SKIP_UI_BUILD=1 PREBUILT_ASSETS_STATIC_DIR=/ui-static \
@@ -83,3 +94,5 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM quay.io/prometheus/prometheus:${VERSION}
 COPY --from=build /src/prometheus /bin/prometheus
+# Include up to 100 creating goroutines in tracebacks
+ENV GODEBUG=tracebackancestors=100
