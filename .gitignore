@@ -31,3 +31,8 @@ npm_licenses.tar.bz2
 
 # Ignore parser debug
 y.output
+
+# Copied in by paramtrack's testbeds (golang.org-x-tools/gopls/internal/cmd/conftamer/querygraph/paramtrack/testbeds.py)
+# for the argmatch image build to read
+/paramtrack-stacklog.txt
+/paramtrack-matches.txt
